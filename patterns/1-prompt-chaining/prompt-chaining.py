@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 # Set up logging configuration
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -30,7 +30,7 @@ class EventDetails(BaseModel):
     """Second LLM call: Parse specific event details"""
 
     name: str = Field(description="Name of the event")
-    date: str = Field(
+    datetime: str = Field(
         description="Date and time of the event, use ISO 8601 to format this value. "
     )
     duration_minutes: int = Field(description="Duration in minutes")
@@ -56,14 +56,14 @@ def extract_event_info(user_input: str) -> EventExtraction:
     logger.debug(f"Input text: {user_input}")
 
     today = datetime.now()
-    date_context = f"Today is {today.strftime('%A, %B %d, %Y %H:%M:%S')}."
+    datetime_context = f"Today is {today.strftime('%A, %B %d, %Y %H:%M:%S')}."
 
     response: ChatResponse = chat(
         model="llama3.1",
         messages=[
             {
                 "role": "system",
-                "content": f"{date_context} Analyze if the text describes a calendar event. Store the user input as the description if it is a valid calendar event.",
+                "content": f"{datetime_context} Analyze if the text describes a calendar event. Store the user input as the description if it is a valid calendar event.",
             },
             {"role": "user", "content": user_input},
         ],
@@ -81,14 +81,14 @@ def parse_event_details(description: str) -> EventDetails:
     logger.debug(f"Event description: {description}")
 
     today = datetime.now()
-    date_context = f"Today is {today.strftime('%A, %B %d, %Y %H:%M:%S')}."
+    datetime_context = f"Today is {today.strftime('%A, %B %d, %Y %H:%M:%S')}."
 
     response: ChatResponse = chat(
         model="llama3.1",
         messages=[
             {
                 "role": "system",
-                "content": f"{date_context} Extract detailed event information from user input. When dates reference 'next Tuesday' or similar relative dates, use this current date as reference. Include the time of the event.",
+                "content": f"{datetime_context} Extract detailed event information from user input. When dates reference 'next Tuesday' or similar relative dates, use this current date as reference. Include the time of the event.",
             },
             {"role": "user", "content": description},
         ],
@@ -96,7 +96,7 @@ def parse_event_details(description: str) -> EventDetails:
     )
     result = EventDetails.model_validate_json(response.message.content)
     logger.info(
-        f"Parsed event details - Name: {result.name}, Date: {result.date}, Duration: {result.duration_minutes}min"
+        f"Parsed event details - Name: {result.name}, Date: {result.datetime}, Duration: {result.duration_minutes}min"
     )
     logger.info(f"Participants: {', '.join(result.participants)}")
     return result
@@ -104,7 +104,7 @@ def parse_event_details(description: str) -> EventDetails:
 def generate_confirmation(event_details: EventDetails) -> EventConfirmation:
     """Third LLM call to generate a confirmation message"""
     logger.info("Generating confirmation message")
-    logger.info(event_details.model_dump())
+    logger.debug(event_details.model_dump())
     response: ChatResponse = chat(
         model="llama3.1",
         messages=[
@@ -125,7 +125,7 @@ def generate_confirmation(event_details: EventDetails) -> EventConfirmation:
 # Step 3: Chain the functions together
 # --------------------------------------------------------------
 def process_calendar_request(user_input: str) -> Optional[EventConfirmation]:
-    """Main function implementing prompt chain with gate checks"""
+    """Main function implementing prompt chaining with gate checks"""
 
     # First LLM call: Determine if user input a valid calendar event
     initial_extraction = extract_event_info(user_input)
