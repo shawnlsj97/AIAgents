@@ -98,6 +98,8 @@ response: ChatResponse = chat(
     format=WeatherResponse.model_json_schema(),
 )
 
+print(response.model_dump())
+
 print("Final response:", response.message.content)
 weather = WeatherResponse.model_validate_json(response.message.content) # create object
 print(weather.temperature)
